@@ -121,9 +121,8 @@ if __name__ == '__main__':
     def test_fn(epoch, env_step):
         policy.set_eps({{eps_test}})
 
-    # watch agent's performance
-
     {% if watch == True %}
+    # watch agent's performance
     def watch():
         print("Testing agent ...")
         policy.eval()
@@ -152,7 +151,9 @@ if __name__ == '__main__':
         {% if early_stop == True %}
         stop_fn={{stop_fn}}
         {% endif %}
+        {% if save == True %}
         save_fn=save_fn,
+        {% endif %}
         {% if tensorboard == True %}
         writer=writer,
         {% endif %}
