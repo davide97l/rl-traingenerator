@@ -44,8 +44,6 @@ if os.getenv("GITHUB_TOKEN") and os.getenv("REPO_NAME"):
 else:
     colab_enabled = False
 
-colab_enabled = False
-
 
 # Display header.
 st.markdown("<br>", unsafe_allow_html=True)
@@ -145,6 +143,7 @@ st.code(code)
 
 # Handle "Open Colab" button. Down here because to open the new web page, it
 # needs to create a temporary element, which we don't want to show above.
+colab_enabled = False
 if open_colab:
     if colab_enabled:
         colab_link = add_to_colab(notebook)

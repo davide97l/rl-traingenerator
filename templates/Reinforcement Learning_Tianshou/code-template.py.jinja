@@ -49,8 +49,8 @@ if __name__ == '__main__':
     {% endif %}
     state_shape = env.observation_space.shape or env.observation_space.n
     action_shape = env.env.action_space.shape or env.env.action_space.n
-    print("Observations shape:", args.state_shape)
-    print("Actions shape:", args.action_shape)
+    print("Observations shape:", state_shape)
+    print("Actions shape:", action_shape)
     # make environments
     {% if env == "Atari" %}
     train_envs = SubprocVectorEnv([lambda: make_atari_env()
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     # define model
     {{policy}}
     {% if policy == "DQN" %}
-    net = DQN(state_shape,
+    net = DQN(*state_shape,
               action_shape, device).to(device)
     {% endif %}
     {% if optimizer == "Adam" %}
@@ -147,8 +147,12 @@ if __name__ == '__main__':
         collect_per_step={{collect_per_step}},
         episode_per_test={{test_num}},
         batch_size={{batch_size}},
-        train_fn=train_fn, test_fn=test_fn,
-        stop_fn=stop_fn, save_fn=save_fn,
+        train_fn=train_fn,
+        test_fn=test_fn,
+        {% if early_stop == True %}
+        stop_fn={{stop_fn}}
+        {% endif %}
+        save_fn=save_fn,
         {% if tensorboard == True %}
         writer=writer,
         {% endif %}
