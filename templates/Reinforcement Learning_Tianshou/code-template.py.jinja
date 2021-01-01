@@ -1,0 +1,161 @@
+# Before running, install required packages:
+{% if notebook %}
+
+!
+{%- else %}
+#
+{%- endif %}
+ pip install tianshou
+{% if notebook %}
+
+
+# ---
+{% endif %}
+
+import os
+import torch
+import pprint
+import argparse
+import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+
+from tianshou.policy import DQNPolicy
+from tianshou.env import SubprocVectorEnv
+from tianshou.utils.net.discrete import DQN
+from tianshou.trainer import offpolicy_trainer
+from tianshou.data import Collector, ReplayBuffer
+
+{% if env == "Atari" %}
+from atari_wrapper import wrap_deepmind
+# you can retrieve this file from: https://github.com/thu-ml/tianshou/blob/master/examples/atari/atari_wrapper.py
+
+
+def make_atari_env(watch=False):
+    if watch:
+        return wrap_deepmind("{{ task }}", frame_stack={{frames_stack}},
+                             episode_life=False, clip_rewards=False)
+    return wrap_deepmind("{{ task }}", frame_stack={{frames_stack}})
+
+{% endif %}
+
+if __name__ == '__main__':
+    # in this folder will be saved the best model and/or tensorboard files
+    logdir = "log"
+    {% if gpu == True %}
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    {% endif %}
+    {% if env == "Atari" %}
+    env = make_atari_env()
+    {% endif %}
+    state_shape = env.observation_space.shape or env.observation_space.n
+    action_shape = env.env.action_space.shape or env.env.action_space.n
+    print("Observations shape:", args.state_shape)
+    print("Actions shape:", args.action_shape)
+    # make environments
+    {% if env == "Atari" %}
+    train_envs = SubprocVectorEnv([lambda: make_atari_env()
+                                   for _ in range({{training_num}})])
+    test_envs = SubprocVectorEnv([lambda: make_atari_env(watch=True)
+                                  for _ in range({{test_num}})])
+    {% endif %}
+    # seed
+    np.random.seed({{seed}})
+    torch.manual_seed({{seed}})
+    train_envs.seed({{seed}})
+    test_envs.seed({{seed}})
+    # define model
+    {{policy}}
+    {% if policy == "DQN" %}
+    net = DQN(state_shape,
+              action_shape, device).to(device)
+    {% endif %}
+    {% if optimizer == "Adam" %}
+    optim = torch.optim.Adam(net.parameters(), lr={{lr}})
+    {% endif %}
+    # define policy
+    {% if policy == "DQN" %}
+    policy = DQNPolicy(net, optim, discount_factor={{discount_factor}},
+                       estimation_step={{estimation_step}},
+                       target_update_freq={{target_update_freq}})
+    {% endif %}
+    # replay buffer: `save_last_obs` and `stack_num` can be removed together
+    # when you have enough RAM
+    {% if policy == "DQN" %}
+    buffer = ReplayBuffer({{buffer_size}}, ignore_obs_next=True,
+                          save_only_last_obs=True, stack_num={{frames_stack}})
+    {% endif %}
+    # collector
+    train_collector = Collector(policy, train_envs, buffer)
+    test_collector = Collector(policy, test_envs)
+    # log
+    log_path = os.path.join(logdir, '{{task}}', '{{policy}}')
+    {% if tensorboard == True %}
+    writer = SummaryWriter(log_path)
+    {% endif %}
+
+    {% if save == True %}
+    def save_fn(policy):
+        torch.save(policy, os.path.join(log_path, 'policy.pth'))
+    {% endif %}
+
+    {% if early_stop == True %}
+    def stop_fn(mean_rewards):
+        return mean_rewards >= {{target_reward}}
+    {% endif %}
+
+    def train_fn(epoch, env_step):
+        eps_train = {{eps_train}}
+        eps_train_final = {{eps_train_final}}
+        linear_decay_steps = {{linear_decay_steps}}
+        # nature DQN setting, linear decay in the first 1M steps
+        if env_step <= linear_decay_steps:
+            eps = eps_train - env_step / linear_decay_steps * \
+                (eps_train - eps_train_final)
+        else:
+            eps = eps_train_final
+        policy.set_eps(eps)
+        {% if tensorboard == True %}
+        writer.add_scalar('train/eps', eps, global_step=env_step)
+        {% endif %}
+
+    def test_fn(epoch, env_step):
+        policy.set_eps({{eps_test}})
+
+    # watch agent's performance
+
+    {% if watch == True %}
+    def watch():
+        print("Testing agent ...")
+        policy.eval()
+        policy.set_eps({{eps_test}})
+        test_envs.seed({{seed}})
+        test_collector.reset()
+        result = test_collector.collect(n_episode=[1] * {{test_num}},
+                                        render=0)
+        pprint.pprint(result)
+    {% endif %}
+
+    # test train_collector and start filling replay buffer
+    {% if policy == "DQN" %}
+    train_collector.collect(n_step={{batch_size}} * 4)
+    {% endif %}
+    # trainer
+    result = offpolicy_trainer(
+        policy, train_collector, test_collector,
+        max_epoch={{epoch}},
+        step_per_epoch={{step_per_epoch}},
+        collect_per_step={{collect_per_step}},
+        episode_per_test={{test_num}},
+        batch_size={{batch_size}},
+        train_fn=train_fn, test_fn=test_fn,
+        stop_fn=stop_fn, save_fn=save_fn,
+        {% if tensorboard == True %}
+        writer=writer,
+        {% endif %}
+        test_in_train=False)
+
+    pprint.pprint(result)
+    {% if watch == True %}
+    watch()
+    {% endif %}
+
