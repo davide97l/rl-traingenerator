@@ -13,17 +13,26 @@
 {% endif %}
 
 import os
+{% if env == "Classic control" %}
+import gym
+{% endif %}
 import torch
 import pprint
-import argparse
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
+{% if policy == "DQN" %}
 from tianshou.policy import DQNPolicy
-from tianshou.env import SubprocVectorEnv
+    {% if env == "Atari" %}
 from tianshou.utils.net.discrete import DQN
+    {% endif %}
+{% endif %}
+from tianshou.env import SubprocVectorEnv
+{% if env == "Classic control" %}
+from tianshou.utils.net.common import Net
+{% endif %}
 from tianshou.trainer import offpolicy_trainer
-from tianshou.data import Collector, ReplayBuffer
+from tianshou.data import Collector{% if prioritized == False %}, ReplayBuffer{% else %}, PrioritizedReplayBuffer{% endif %}
 
 {% if env == "Atari" %}
 from atari_wrapper import wrap_deepmind
@@ -47,6 +56,9 @@ if __name__ == '__main__':
     {% if env == "Atari" %}
     env = make_atari_env()
     {% endif %}
+    {% if env == "Classic control" %}
+    env = gym.make("{{task}}")
+    {% endif %}
     state_shape = env.observation_space.shape or env.observation_space.n
     action_shape = env.env.action_space.shape or env.env.action_space.n
     print("Observations shape:", state_shape)
@@ -58,20 +70,30 @@ if __name__ == '__main__':
     test_envs = SubprocVectorEnv([lambda: make_atari_env(watch=True)
                                   for _ in range({{test_num}})])
     {% endif %}
+    {% if env == "Classic control" %}
+    train_envs = SubprocVectorEnv([lambda: gym.make("{{task}}")
+                                   for _ in range({{training_num}})])
+    test_envs = SubprocVectorEnv([lambda: gym.make("{{task}}")
+                                  for _ in range({{test_num}})])
+    {% endif %}
     # seed
     np.random.seed({{seed}})
     torch.manual_seed({{seed}})
     train_envs.seed({{seed}})
     test_envs.seed({{seed}})
     # define model
-    {{policy}}
     {% if policy == "DQN" %}
+        {% if env == "Atari" %}
     net = DQN(*state_shape,
               action_shape, device).to(device)
+        {% endif %}
+        {% if env == "Classic control" %}
+    layers_num = {{layer_num}}
+    net = Net(layers_num, state_shape,
+          action_shape, device).to(device)
+        {% endif %}
     {% endif %}
-    {% if optimizer == "Adam" %}
-    optim = torch.optim.Adam(net.parameters(), lr={{lr}})
-    {% endif %}
+    optim = torch.optim.{{optimizer}}(net.parameters(), lr={{lr}})
     # define policy
     {% if policy == "DQN" %}
     policy = DQNPolicy(net, optim, discount_factor={{discount_factor}},
@@ -81,8 +103,20 @@ if __name__ == '__main__':
     # replay buffer: `save_last_obs` and `stack_num` can be removed together
     # when you have enough RAM
     {% if policy == "DQN" %}
-    buffer = ReplayBuffer({{buffer_size}}, ignore_obs_next=True,
-                          save_only_last_obs=True, stack_num={{frames_stack}})
+        {% if prioritized == False %}
+    buffer = ReplayBuffer({{buffer_size}}{% if env == "Classic control" %}){% endif %}{% if env == "Atari" %},
+                          ignore_obs_next=True,
+                          save_only_last_obs=True,
+                          stack_num={{frames_stack}})
+                          {% endif %}
+        {% else %}
+    buffer = PrioritizedReplayBuffer({{buffer_size}},
+                                     alpha={{alpha}}, beta={{beta}}{% if env == "Classic control" %}){% endif %}{% if env == "Atari" %},
+                                     ignore_obs_next=True,
+                                     save_only_last_obs=True,
+                                     stack_num={{frames_stack}})
+                                     {% endif %}
+        {% endif %}
     {% endif %}
     # collector
     train_collector = Collector(policy, train_envs, buffer)
@@ -96,13 +130,13 @@ if __name__ == '__main__':
     {% if save == True %}
     def save_fn(policy):
         torch.save(policy, os.path.join(log_path, 'policy.pth'))
-    {% endif %}
 
+    {% endif %}
     {% if early_stop == True %}
     def stop_fn(mean_rewards):
         return mean_rewards >= {{target_reward}}
-    {% endif %}
 
+    {% endif %}
     def train_fn(epoch, env_step):
         eps_train = {{eps_train}}
         eps_train_final = {{eps_train_final}}

@@ -5,7 +5,17 @@ import streamlit as st
 # option 1: model -> code
 # option 2 – if model has multiple variants: model -> model variant -> code
 POLICIES = {
-        "DQN": {"eps_test": 0.005, "eps_train": 1., "eps_train_final": 0.05, "linear_decay_steps": 1000000, "buffer_size": 100000, "lr": 0.0001, "discount_factor": 0.99, "estimation_step": 3, "target_update_freq": 500, "epoch": 100, "step_per_epoch": 10000, "collect_per_step": 10, "batch_size": 32, "training_num": 16, "test_num": 10},
+        "DQN": {"Atari":
+                    {"eps_test": 0.005, "eps_train": 1., "eps_train_final": 0.05, "linear_decay_steps": 1000000,
+                     "buffer_size": 100000, "lr": 0.0001, "discount_factor": 0.99, "estimation_step": 3,
+                     "target_update_freq": 500, "epoch": 100, "step_per_epoch": 10000, "collect_per_step": 10,
+                     "batch_size": 32, "training_num": 16, "test_num": 10, "prioritized": False},
+                "Classic control":
+                    {"eps_test": 0.005, "eps_train": 0.1, "eps_train_final": 0.05, "linear_decay_steps": 50000,
+                     "buffer_size": 20000, "lr": 0.0001, "discount_factor": 0.99, "estimation_step": 3,
+                     "target_update_freq": 300, "epoch": 10, "step_per_epoch": 1000, "collect_per_step": 10,
+                     "batch_size": 64, "training_num": 16, "test_num": 10, "prioritized": False}
+                },
         #"A2C": {},
         #"PPO": {},
 }
@@ -24,6 +34,7 @@ TRAINING_PARAMS_DICT = {
     "estimation_step": {"text": "Estimation step", "desc": "Number of steps to look ahead. to estimate the reward"},
     "target_update_freq": {"text": "Target update frequency", "desc": "Number of steps between each target model update"},
     "batch_size": {"text": "Batch size", "desc": None},
+    "prioritized": {"text": "Prioritized buffer", "desc": "With prioritized buffer more critical states have more probability to be sampled"},
 }
 PARALLELIZATION_DICT = {
     # parallelization
@@ -37,19 +48,35 @@ TRAINING_DURATION_DICT = {
     "collect_per_step": {"text": "Collect per steps", "desc": "How many frames for each step"},
 }
 ENVIRONMENTS = {
-    #"Classic control": {  # multiple model variants
-    #    "CartPole-v1": "CartPole-v1",
-    #},
-    "Atari": {  # multiple model variants
+    "Atari": {
         "Pong": "PongNoFrameskip-v4",
         "Breakout": "BreakoutNoFrameskip-v4",
+        "AirRaid": "AirRaid-v0",
+        "Alien": "Alien-v0",
+        "Amidar": "Amidar-v4",
+        "Assault": "Assault-v4",
+        "Asterix": "Asterix-v4",
+        "Asteroids": "Asteroids-v4",
+        "Atlantis": "Atlantis-v4",
+        "BankHeist": "BankHeist-v4",
+        "BattleZone": "BattleZone-v4",
+        "BeamRider": "BeamRider-v4",
+        "Berzerk": "Berzerk-v4",
+        "Bowling": "Bowling-v4",
         "Enduro": "EnduroNoFrameskip-v4",
-        "Qbert": "QbertNoFrameskip-v4",
         "MsPacman": "MsPacmanNoFrameskip-v4",
-        "SpaceInvaders": "SpaceInvadersNoFrameskip-v4",
+        "Qbert": "QbertNoFrameskip-v4",
         "Seaquest": "SeaquestNoFrameskip-v4",
+        "SpaceInvaders": "SpaceInvadersNoFrameskip-v4",
+
+    },
+    "Classic control": {
+        "CartPole": "CartPole-v1",
     },
 }
+
+
+DISCRETE_POLICIES = ["DQN", "A2C", "PPO"]
 
 
 def linear_decay(env_step):
@@ -68,9 +95,7 @@ EPS_CURVE = {
     "linear_decay": {"text": "Linear decay", "func": linear_decay},
 }
 
-OPTIMIZERS = ["Adam",
-              #"Adadelta", "Adagrad", "Adamax", "RMSprop", "SGD"
-             ]
+OPTIMIZERS = ["Adam", "Adadelta", "Adagrad", "Adamax", "RMSprop", "SGD"]
 
 
 def show():
@@ -86,8 +111,14 @@ def show():
         st.write("## Environment :video_game:")
         inputs["env"] = st.selectbox("Which environment do you want to use?", list(ENVIRONMENTS.keys()))
         env = inputs["env"]
+
+        env_list = ENVIRONMENTS[env].keys()
+        if inputs["policy"] in DISCRETE_POLICIES:
+            if env == "Classic control":
+                env_list = ["CartPole"]  # only CartPole can be solved by discrete policies
+
         if isinstance(ENVIRONMENTS[env], dict):  # different env tasks
-            task = st.selectbox("Which task?", list(ENVIRONMENTS[env].keys()))
+            task = st.selectbox("Which task?", list(env_list))
             inputs["task"] = ENVIRONMENTS[env][task]
         else:  # only one variant
             inputs["task"] = ENVIRONMENTS[env]
@@ -95,23 +126,42 @@ def show():
             inputs["frames_stack"] = st.number_input("Frames stacking", 1, None, 4)
             st.markdown('<sup> Stacked frames composing an observation, used to represent object directions </sup>',
                         unsafe_allow_html=True)
+        if env == "Classic control":
+            inputs["layer_num"] = st.number_input("Number of layers", 1, None, 3)
+            st.markdown('<sup> Number of layers of dense network </sup>',
+                        unsafe_allow_html=True)
         inputs["early_stop"] = st.checkbox("Early stop", False)
         if inputs["early_stop"]:
             inputs["target_reward"] = st.number_input("Target reward", None, None, 1000)
             st.markdown("<sup> Stop earlier if agent's rewards is at least " + str(inputs["target_reward"]) + "</sup>",
                         unsafe_allow_html=True)
+
+        inputs["prioritized"] = None
+
         section = ["Training duration :hourglass:", "Exploration level :world_map:",
                    "Training parameters :bookmark_tabs:", "Parallelization :fast_forward:"]
         for i, DICT in enumerate([TRAINING_DURATION_DICT, EPS_DICT, TRAINING_PARAMS_DICT, PARALLELIZATION_DICT]):
             st.write("## " + section[i])
-            for k, v in POLICIES[policy].items():
+            for k, v in POLICIES[policy][inputs["env"]].items():
                 if k in DICT.keys():
                     if type(v) == float:
                         inputs[k] = st.number_input(DICT[k]["text"], 0.000, None, v, format="%f")
                     if type(v) == int:
                         inputs[k] = st.number_input(DICT[k]["text"], 1, None, v)
+                    if type(v) == bool:
+                        inputs[k] = st.checkbox(DICT[k]["text"], v)
                     if DICT[k]["desc"] is not None:
                         st.markdown('<sup>' + DICT[k]["desc"] + '</sup>', unsafe_allow_html=True)
+
+                    if k == "prioritized" and inputs["prioritized"]:
+                        inputs["alpha"] = st.number_input("Alpha", 0.000, 1., 0.5)
+                        st.markdown(
+                            '<sup> Determines how much prioritization is used, with α = 0 corresponding to the uniform case </sup>',
+                            unsafe_allow_html=True)
+                        inputs["beta"] = st.number_input("Beta", 0.000, 1., 0.5)
+                        st.markdown(
+                            "<sup> Importance sampling weights, reduce gradients according to samples' importance, higher values correspord to greater downscaling </sup>",
+                            unsafe_allow_html=True)
 
             """if section[i] == "Exploration level":
                 st.markdown('<sup> Epsilon curve </sup>', unsafe_allow_html=True)

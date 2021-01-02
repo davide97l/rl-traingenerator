@@ -1,8 +1,10 @@
 policy: DQN
 env:
   - Atari
+  - Classic control
 task:
   - PongNoFrameskip-v4
+  - CartPole-v1
 gpu:
   - True
   - False
