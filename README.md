@@ -12,6 +12,7 @@ Automatic code generator for training Reinforcement Learning policies:joystick:
 </h3>
 
 <br>
+
 Generate custom template code to train you reinforcement learning policy using a simple web UI built with [streamlit](https://www.streamlit.io/).
 It includes different environments and could be expanded to suppot multiple policies with an high level of hyperparameters customization.
 The generated code can be easily downloaded as .py file or Jupyter Notebook so to immediately start training your model.
