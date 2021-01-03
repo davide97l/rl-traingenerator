@@ -18,7 +18,7 @@ The generated code can be easily downloaded as .py file or Jupyter Notebook so t
 The backbone of the project has been taken from this [repository](https://traingenerator.jrieke.com) where you can contribute with your own template.
 
 Supported frameworks:
--Tianshou [link](https://github.com/thu-ml/tianshou)
+- [Tianshou](https://github.com/thu-ml/tianshou)
 
 Supported policies:
 - DQN
