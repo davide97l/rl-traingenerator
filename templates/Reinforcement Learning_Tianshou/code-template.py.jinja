@@ -5,7 +5,7 @@
 {%- else %}
 #
 {%- endif %}
- pip install tianshou
+ pip install tianshou {% if env == "Box2D" %}box2d-py{% endif %}
 {% if notebook %}
 
 
@@ -13,7 +13,7 @@
 {% endif %}
 
 import os
-{% if env == "Classic control" %}
+{% if env == "Classic control" or env == "Box2D" %}
 import gym
 {% endif %}
 import torch
@@ -28,7 +28,7 @@ from tianshou.utils.net.discrete import DQN
     {% endif %}
 {% endif %}
 from tianshou.env import SubprocVectorEnv
-{% if env == "Classic control" %}
+{% if env == "Classic control" or env == "Box2D" %}
 from tianshou.utils.net.common import Net
 {% endif %}
 from tianshou.trainer import offpolicy_trainer
@@ -56,8 +56,9 @@ if __name__ == '__main__':
     {% if env == "Atari" %}
     env = make_atari_env()
     {% endif %}
-    {% if env == "Classic control" %}
-    env = gym.make("{{task}}")
+    {% if env == "Classic control" or env == "Box2D" %}
+    task = "{{task}}"
+    env = gym.make(task)
     {% endif %}
     state_shape = env.observation_space.shape or env.observation_space.n
     action_shape = env.env.action_space.shape or env.env.action_space.n
@@ -70,10 +71,10 @@ if __name__ == '__main__':
     test_envs = SubprocVectorEnv([lambda: make_atari_env(watch=True)
                                   for _ in range({{test_num}})])
     {% endif %}
-    {% if env == "Classic control" %}
-    train_envs = SubprocVectorEnv([lambda: gym.make("{{task}}")
+    {% if env == "Classic control" or env == "Box2D" %}
+    train_envs = SubprocVectorEnv([lambda: gym.make(task)
                                    for _ in range({{training_num}})])
-    test_envs = SubprocVectorEnv([lambda: gym.make("{{task}}")
+    test_envs = SubprocVectorEnv([lambda: gym.make(task)
                                   for _ in range({{test_num}})])
     {% endif %}
     # seed
@@ -87,10 +88,10 @@ if __name__ == '__main__':
     net = DQN(*state_shape,
               action_shape, device).to(device)
         {% endif %}
-        {% if env == "Classic control" %}
+        {% if env == "Classic control" or env == "Box2D" %}
     layers_num = {{layer_num}}
     net = Net(layers_num, state_shape,
-          action_shape, device).to(device)
+              action_shape, device).to(device)
         {% endif %}
     {% endif %}
     optim = torch.optim.{{optimizer}}(net.parameters(), lr={{lr}})
@@ -104,14 +105,14 @@ if __name__ == '__main__':
     # when you have enough RAM
     {% if policy == "DQN" %}
         {% if prioritized == False %}
-    buffer = ReplayBuffer({{buffer_size}}{% if env == "Classic control" %}){% endif %}{% if env == "Atari" %},
+    buffer = ReplayBuffer({{buffer_size}}{% if env == "Classic control" or env == "Box2D" %}){% endif %}{% if env == "Atari" %},
                           ignore_obs_next=True,
                           save_only_last_obs=True,
                           stack_num={{frames_stack}})
                           {% endif %}
         {% else %}
     buffer = PrioritizedReplayBuffer({{buffer_size}},
-                                     alpha={{alpha}}, beta={{beta}}{% if env == "Classic control" %}){% endif %}{% if env == "Atari" %},
+                                     alpha={{alpha}}, beta={{beta}}{% if env == "Classic control" or env == "Box2D" %}){% endif %}{% if env == "Atari" %},
                                      ignore_obs_next=True,
                                      save_only_last_obs=True,
                                      stack_num={{frames_stack}})

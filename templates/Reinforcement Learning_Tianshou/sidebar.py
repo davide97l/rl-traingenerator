@@ -13,7 +13,12 @@ POLICIES = {
                 "Classic control":
                     {"eps_test": 0.005, "eps_train": 0.1, "eps_train_final": 0.05, "linear_decay_steps": 50000,
                      "buffer_size": 20000, "lr": 0.0001, "discount_factor": 0.99, "estimation_step": 3,
-                     "target_update_freq": 300, "epoch": 10, "step_per_epoch": 1000, "collect_per_step": 10,
+                     "target_update_freq": 300, "epoch": 10, "step_per_epoch": 1000, "collect_per_step": 100,
+                     "batch_size": 64, "training_num": 16, "test_num": 10, "prioritized": False},
+                "Box2D":
+                    {"eps_test": 0.005, "eps_train": 1., "eps_train_final": 0.05, "linear_decay_steps": 100000,
+                     "buffer_size": 100000, "lr": 0.0001, "discount_factor": 0.99, "estimation_step": 3,
+                     "target_update_freq": 500, "epoch": 10, "step_per_epoch": 50000, "collect_per_step": 10,
                      "batch_size": 64, "training_num": 16, "test_num": 10, "prioritized": False}
                 },
         #"A2C": {},
@@ -63,15 +68,61 @@ ENVIRONMENTS = {
         "BeamRider": "BeamRider-v4",
         "Berzerk": "Berzerk-v4",
         "Bowling": "Bowling-v4",
+        "Boxing": "Boxing-v4",
+        "Carnival": "Carnival-v4",
+        "Centipede": "Centipede-v4",
+        "ChopperCommand": "ChopperCommand-v4",
+        "CrazyClimber": "CrazyClimber-v4",
+        "DemonAttack": "DemonAttack-v4",
+        "DoubleDunk": "DoubleDunk-v4",
+        "ElevatorAction": "ElevatorAction-v4",
         "Enduro": "EnduroNoFrameskip-v4",
+        "FishingDerby": "FishingDerby-v4",
+        "Freeway": "Freeway-v4",
+        "Frostbite": "Frostbite-v4",
+        "Gopher": "Gopher-v4",
+        "Gravitar": "Gravitar-v4",
+        "IceHockey": "IceHockey-v4",
+        "Jamesbond": "Jamesbond-v4",
+        "JourneyEscape": "JourneyEscape-v4",
+        "Kangaroo": "Kangaroo-v4",
+        "Krull": "Krull-v4",
+        "KungFuMaster": "KungFuMaster-v4",
+        "MontezumaRevenge": "MontezumaRevenge-v4",
         "MsPacman": "MsPacmanNoFrameskip-v4",
+        "NameThisGame": "NameThisGame-v4",
+        "Phoenix": "Phoenix-v4",
+        "Pitfall": "Pitfall-v4",
+        "Pooyan": "Pooyan-v4",
+        "PrivateEye": "PrivateEye-v4",
         "Qbert": "QbertNoFrameskip-v4",
+        "Riverraid": "Riverraid-v4",
+        "RoadRunner": "RoadRunner-v4",
+        "Robotank": "Robotank-v4",
         "Seaquest": "SeaquestNoFrameskip-v4",
+        "Skiing": "Skiing-v4",
+        "Solaris": "Solaris-v4",
         "SpaceInvaders": "SpaceInvadersNoFrameskip-v4",
-
+        "StarGunner": "StarGunner-v4",
+        "Tennis": "Tennis-v4",
+        "TimePilot": "TimePilot-v4",
+        "Tutankham": "Tutankham-v4",
+        "UpNDown": "UpNDown-v4",
+        "Venture": "Venture-v4",
+        "VideoPinball": "VideoPinball-v4",
+        "WizardOfWor": "WizardOfWor-v4",
+        "YarsRevenge": "YarsRevenge-v4",
+        "Zaxxom": "Zaxxom-v4",
     },
     "Classic control": {
         "CartPole": "CartPole-v1",
+        "Acrobot": "Acrobot-v1",
+    },
+    "Box2D": {
+        "BipedalWalker": "BipedalWalker-v2",
+        "BipedalWalkerHardcore": "BipedalWalkerHardcore-v2",
+        "CarRacing": "CarRacing-v0",
+        "LunarLander": "LunarLander-v2",
     },
 }
 
@@ -115,7 +166,9 @@ def show():
         env_list = ENVIRONMENTS[env].keys()
         if inputs["policy"] in DISCRETE_POLICIES:
             if env == "Classic control":
-                env_list = ["CartPole"]  # only CartPole can be solved by discrete policies
+                env_list = ["CartPole", "Acrobot"]  # only CartPole can be solved by discrete policies
+            if env == "Box2D":
+                env_list = ["LunarLander"]  # only LunarLander can be solved by discrete policies
 
         if isinstance(ENVIRONMENTS[env], dict):  # different env tasks
             task = st.selectbox("Which task?", list(env_list))
@@ -126,7 +179,7 @@ def show():
             inputs["frames_stack"] = st.number_input("Frames stacking", 1, None, 4)
             st.markdown('<sup> Stacked frames composing an observation, used to represent object directions </sup>',
                         unsafe_allow_html=True)
-        if env == "Classic control":
+        if env in ["Classic control", "Box2d"]:
             inputs["layer_num"] = st.number_input("Number of layers", 1, None, 3)
             st.markdown('<sup> Number of layers of dense network </sup>',
                         unsafe_allow_html=True)
@@ -163,7 +216,8 @@ def show():
                             "<sup> Importance sampling weights, reduce gradients according to samples' importance, higher values correspord to greater downscaling </sup>",
                             unsafe_allow_html=True)
 
-            """if section[i] == "Exploration level":
+            """if "Exploration level" in section[i]:
+                import numpy as np, pandas as pd
                 st.markdown('<sup> Epsilon curve </sup>', unsafe_allow_html=True)
                 linear_decay.eps_train = inputs["eps_train"]
                 linear_decay.eps_train_final = inputs["eps_train_final"]
@@ -193,3 +247,12 @@ def show():
 
 if __name__ == "__main__":
     show()
+
+
+"""
+streamlit run app/main.py
+
+heroku create
+git push heroku main
+heroku open
+"""
