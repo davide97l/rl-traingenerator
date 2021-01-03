@@ -17,6 +17,8 @@ It includes different environments and could be expanded to suppot multiple poli
 The generated code can be easily downloaded as .py file or Jupyter Notebook so to immediately start training your model.
 The backbone of the project has been taken from this [repository](https://traingenerator.jrieke.com) where you can contribute with your own template.
 
+## Features
+
 Supported frameworks:
 - [Tianshou](https://github.com/thu-ml/tianshou)
 
