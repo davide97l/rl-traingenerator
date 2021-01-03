@@ -186,7 +186,7 @@ def show():
         inputs["early_stop"] = st.checkbox("Early stop", False)
         if inputs["early_stop"]:
             inputs["target_reward"] = st.number_input("Target reward", None, None, 1000)
-            st.markdown("<sup> Stop earlier if agent's rewards is at least " + str(inputs["target_reward"]) + "</sup>",
+            st.markdown("<sup> Stop earlier if agent's reward is at least " + str(inputs["target_reward"]) + "</sup>",
                         unsafe_allow_html=True)
 
         inputs["prioritized"] = None
