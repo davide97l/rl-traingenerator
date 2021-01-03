@@ -53,3 +53,6 @@ Update deployed app:
 ```
 git push heroku main
 ```
+
+## Support
+If you found this project interesting please support me by giving it a :star:, I would really appreciate it :grinning:
