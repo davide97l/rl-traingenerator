@@ -151,7 +151,6 @@ if open_colab:
     else:
         colab_error.error(
             """
-            **Colab support is disabled.** (If you are hosting this: Create a Github 
-            repo to store notebooks and register it via a .env file)
+            **Colab support is temporarily disabled.**
             """
         )
